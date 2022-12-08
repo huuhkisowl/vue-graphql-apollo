@@ -10,8 +10,12 @@ const cache = new InMemoryCache();
 const apolloClient = new ApolloClient({
    link: httpLink,
    cache,
+   connectToDevTools: true
  })
 
 export const provider = createApolloProvider({
   defaultClient: apolloClient,
+  defaultOptions: {
+    $loadingKey: 'loading'
+  }
 });
