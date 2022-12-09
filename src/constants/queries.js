@@ -61,25 +61,41 @@ export const SEARCH_MOVIE = gql`
   }
 `;
 
-export const SEARCH_ACTOR = gql`
-  query findActor($term: String!) {
-    actor(term: $term) {
-      firstName
-      lastName
+export const SEARCH_MOVIE_BY_ACTOR = gql`
+  query findMovieByActor($id: String!) {
+    moviesByActorId(id: $id) {
+      name
+      synopsis
+      actors{
+        firstName
+        lastName
+      }
+    }
+  }
+`;
+
+export const SEARCH_MOVIE_BY_GENRE = gql`
+  query findMovieByGenre($id: String!) {
+    moviesByGenreId(id: $id) {
+      name
+      synopsis
+      genres{
+        genre
+      }
     }
   }
 `;
 
 export const CREATE_MOVIE = gql`
-  mutation createMovieMutation($name: String!, $year: Int, $ageLimit: Int, $rating: Int, $synopsis: String!, $genres: String, $actors: String, $directorId: String) {
+  mutation createMovieMutation($name: String!, $year: Int, $ageLimit: Int, $rating: Int, $synopsis: String!, $genresIds: [String], $actorsIds: [String], $directorId: String) {
     createMovie(movie: {
       name: $name,
       year: $year,
       ageLimit: $ageLimit,
       rating: $rating,
       synopsis: $synopsis,
-      genresIds: [$genres],
-      actorsIds: [$actors],
+      genresIds: $genresIds,
+      actorsIds: $actorsIds,
       directorId: $directorId
     }
     ) {

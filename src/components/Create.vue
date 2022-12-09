@@ -1,10 +1,13 @@
 <script>
 import { GET_GENRES, GET_ACTORS, GET_DIRECTORS, CREATE_MOVIE } from "../constants/queries";
+import { useMutation } from '@vue/apollo-composable'
+
 export default {
   name: "Create",
   data() {
     return {
       movie: {},
+      newMovie: {},
       genresItem: [],
       actorsItem: [],
       directorsItem: [],
@@ -14,14 +17,18 @@ export default {
       ratingInput: '',
       synopsisText: '',
       genresSelected: '',
+      genresInput: [],
       actorsSelected: '',
+      actorsInput: [],
       directorSelected: '',
+      directorInput: '',
       nameRules: [
         v => !!v || 'Name is required'
       ],
       synopsisRules: [
         v => !!v || 'Synopsis is required'
-      ]
+      ],
+      formSubmitted: false
     };
   },
   apollo: {
@@ -36,10 +43,13 @@ export default {
           return GET_ACTORS
         },
         update: data => {
-            const getActors = [];
-            for(let i = 0; i < data.actors.length; i++) {
-                getActors[i] = JSON.parse('{"name":"' + data.actors[i].firstName + ' '+data.actors[i].lastName+'", "id":"' + data.actors[i].id + '"}');
-            }
+            const getActors = []
+            data.actors.map((actor_item, index) => {
+              let newObj = new Object();
+              newObj.name = `${actor_item.firstName} ${actor_item.lastName}`
+              newObj.id = actor_item.id
+              getActors[index] = newObj
+            })
             return getActors;
         }
     },
@@ -48,46 +58,65 @@ export default {
           return GET_DIRECTORS
         },
         update: data => {
-            const getDirecors = [];
-            for(let i = 0; i < data.directors.length; i++) {
-                getDirecors[i] = JSON.parse('{"name":"' + data.directors[i].firstName + ' '+data.directors[i].lastName+'", "id":"' + data.directors[i].id + '"}');
-            }
+            const getDirecors = []
+            data.directors.map((director_item, index) => {
+              let newObj = new Object();
+              newObj.name = `${director_item.firstName} ${director_item.lastName}`
+              newObj.id = director_item.id
+              getDirecors[index] = newObj
+            })
             return getDirecors;
         }
-    },
-    /*
-    movie: {
-        mutate() {
-            return CREATE_MOVIE
-        },
-        variables () {
-          return {
-            name: this.nameInput,
-            year: this.yearInput,
-            ageLimit: this.ageLimitInput,
-            rating: this.ratingInput,
-            synopsis: this.synopsisText,
-            genresIds: this.genresSelected,
-            actorsIds: this.actorsSelected,
-            directorId: this.directorSelected
-          }
-        },
-        skip () {
-          return !this.nameInput || !this.synopsisText
-        },
-        update: data => data.createMovie        
     }
-    */
   },
   methods: {
-
+    createMovie() {
+      this.$apollo.mutate({
+        mutation: CREATE_MOVIE,
+        variables: {
+          name: this.nameInput,
+          year: this.yearInput,
+          ageLimit: this.ageLimitInput,
+          rating: this.ratingInput,
+          synopsis: this.synopsisText,
+          genresIds: this.genresInput,
+          actorsIds: this.actorsInput,
+          directorId: this.directorInput
+        },
+        update: (cache, result) => {
+          this.formSubmitted = true
+          this.newMovie = result.data.createMovie
+        }
+      })
+    }
+  },
+  watch: {
+    actorsSelected(newSelected, oldSelected) {
+      if(newSelected) {
+        const getActors = []
+        getActors[0] = newSelected.id
+        this.actorsInput = getActors;
+      }
+    },
+    genresSelected(newSelected, oldSelected) {
+      if(newSelected) {
+        const getGenres = []
+        getGenres[0] = newSelected.id
+        this.genresInput = getGenres;
+      }
+    },
+    directorSelected(newSelected, oldSelected) {
+      if(newSelected) {
+        this.directorInput = newSelected.id;
+      }
+    },
   }
 };
 </script>
 
 <template>
 
-    <v-form ref="form">
+    <v-form ref="form" v-if="!formSubmitted">
 
         <v-text-field
             v-model="nameInput"
@@ -123,33 +152,74 @@ export default {
             type="input"
         ></v-text-field>
 
-        <v-select
+        <v-autocomplete
             v-model="genresSelected"
             :items="genresItem"
             item-title="genre"
             item-value="id"
-            return-object
             label="Genres"
-        ></v-select>
+            return-object
+            :menu-props='{ maxHeight: 200}'
+        ></v-autocomplete>
 
-        <v-select
+        <v-autocomplete
             v-model="actorsSelected"
             :items="actorsItem"
             item-title="name"
             item-value="id"
-            return-object
             label="Actors"
-        ></v-select>
+            return-object
+            :menu-props='{ maxHeight: 200}'
+        ></v-autocomplete>
 
-        <v-select
+        <v-autocomplete
             v-model="directorSelected"
             :items="directorsItem"
             item-title="name"
             item-value="id"
-            return-object
             label="Director"
-        ></v-select>
+            return-object
+            :menu-props='{ maxHeight: 200}'
+        ></v-autocomplete>
+
+        <v-btn @click="createMovie()">Create movie</v-btn>
 
     </v-form>
+
+    <div v-if="formSubmitted">
+      <h3>Movie created</h3>
+      <v-row no-gutters justify="start">
+        <v-col>
+          <v-sheet class="pa-1">
+
+            <v-card min-width="300" max-width="400">
+
+              <v-card-item>
+                <v-card-title>{{ newMovie.name }}</v-card-title>
+                <v-card-subtitle>Director: {{ newMovie.director?.firstName }} {{ newMovie.director?.lastName }}</v-card-subtitle>
+                <v-card-subtitle>Rating: {{ newMovie.rating }}</v-card-subtitle>
+                <v-card-subtitle>Age limit: {{ newMovie.ageLimit }}</v-card-subtitle>
+                <v-card-subtitle>Year: {{ newMovie.year }}</v-card-subtitle>
+                <v-card-subtitle>Genre: <span v-for="(genre_item, index) in newMovie.genres" :key="index">{{ genre_item.genre }}<template v-if="index < newMovie.genres.length - 1">, </template> </span></v-card-subtitle>
+              </v-card-item>
+
+              <v-card-text>
+                {{ newMovie.synopsis }}
+              </v-card-text>
+              <v-card-text>
+                <p>Actors:</p>
+                <span v-for="(actor_item, index) in newMovie.actors" :key="index">{{ actor_item.firstName }} {{ actor_item.lastName }}<template v-if="index < newMovie.actors.length - 1">, </template> </span>
+              </v-card-text>
+
+              </v-card>
+
+          </v-sheet>
+        </v-col>
+      </v-row>
+    </div>
     
 </template>
+
+<style scoped>
+
+</style>
